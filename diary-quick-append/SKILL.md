@@ -133,7 +133,7 @@ def parse_date(date_str):
 
 # 获取星期
 def get_weekday(year, month, day):
-    weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+    weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     return weekdays[datetime(year, month, day).weekday()]
 ```
 
@@ -205,7 +205,7 @@ file_path="../diary/$(date +%Y)/$(date +%Y-%m).md"
 
 ---
 
-## MM-DD 星期X
+## MM-DD WeekDay
 ### 今日记录
 
 [润色后的日记内容]
@@ -344,7 +344,7 @@ git push origin main
 ```markdown
 ---
 
-## 02-24 星期二
+## 02-24 Tue
 ### 今日记录
 
 今天中午没有睡觉，而是在园区转了一圈。
@@ -370,7 +370,7 @@ git push origin main
 ```markdown
 ---
 
-## 02-01 星期日
+## 02-01 Sun
 ### 今日记录
 
 今天收到一个利空信息。

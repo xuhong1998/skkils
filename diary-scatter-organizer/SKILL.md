@@ -98,7 +98,7 @@ description: (Linux/Mac/Windows) Use when user wants to organize scattered diary
           ▼
    ┌────────────────────────────────────┐
    │ 8. 保存到文件            (~10sec)   │
-   │    2026/02/02-24.md                │
+    │    2026/02/02-24-Tue.md           │
    └──────┬─────────────────────────────┘
           │
           ▼
@@ -953,11 +953,10 @@ def generate_template(date: str, weekday: str, weather_str: str, categorized: di
 ### 文件路径
 
 ```bash
-# 格式：YYYY/MM/MM-DD.md
-file_path="../diary/$(date +%Y)/$(date +%m)/$(date +%m-%d).md"
-```
+# 格式：YYYY/MM/MM-DD-WeekDay.md
+file_path="../diary/$(date +%Y)/$(date +%m)/$(date +%m-%d)-$(date +%a).md"
 
-例如：`../diary/2026/02/02-24.md`
+例如：`../diary/2026/02/02-24-Tue.md`
 
 ### 写入逻辑
 
@@ -970,8 +969,9 @@ diary_path="$SCRIPT_DIR/../../diary"
 year=$(date +%Y)
 month=$(date +%m)
 date=$(date +%m-%d)
+weekday=$(date +%a)
 
-file_path="$diary_path/$year/$month/$date.md"
+file_path="$diary_path/$year/$month/$date-$weekday.md"
 
 # 创建目录（如果不存在）
 mkdir -p "$diary_path/$year/$month"
@@ -985,7 +985,7 @@ echo "✅ 日记已保存到：$file_path"
 ### 文件覆盖处理
 
 ```text
-Claude: 「检测到文件已存在：2026/02/02-24.md
+Claude: 「检测到文件已存在：2026/02/02-24-Tue.md
 是否覆盖？(y/n)」
 
 用户: 「y」 → 覆盖
@@ -1061,7 +1061,7 @@ git pull origin main
 
 **处理结果：**
 ```markdown
-# 📅 02-24 星期二
+# 📅 02-24 Tue
 
 ---
 
@@ -1158,7 +1158,7 @@ git pull origin main
 
 **处理结果：**
 ```markdown
-# 📅 02-24 星期二
+# 📅 02-24 Tue
 
 ---
 
@@ -1537,9 +1537,9 @@ def get_weekday(year: int, month: int, day: int) -> str:
         day: 日
 
     Returns:
-        星期（如 '星期二'）
+        星期英文缩写（如 'Tue'）
     """
-    weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+    weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     return weekdays[datetime(year, month, day).weekday()]
 
 
@@ -1549,7 +1549,7 @@ def generate_template(date: str, weekday: str, weather_str: str, categorized: Di
 
     Args:
         date: 日期（如 '02-24'）
-        weekday: 星期（如 '星期二'）
+        weekday: 星期英文缩写（如 'Tue'）
         weather_str: 天气信息字符串
         categorized: 分类后的记录
         health_info: 健康信息

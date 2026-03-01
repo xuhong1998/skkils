@@ -29,14 +29,14 @@ export DIARY_PATH="$HOME/Documents/diary"
 
 - **文件命名**：`YYYY/YYYY-MM.md`（例如：`2026/2026-02.md`）
 - **文件位置**：`$DIARY_PATH/YYYY/YYYY-MM.md`
-- **内容组织**：按日期分节，每个日期使用二级标题 `## MM-DD 星期X`
+- **内容组织**：按日期分节，每个日期使用二级标题 `## MM-DD WeekDay`
 
 示例结构：
 
 ```markdown
 # 2026-02
 
-## 02-01 星期一
+## 02-01 Sun
 ### 今日记录
 
 [Work Log]
@@ -49,7 +49,7 @@ export DIARY_PATH="$HOME/Documents/diary"
 
 ---
 
-## 02-02 星期二
+## 02-02 Mon
 ### 今日记录
 
 ...
@@ -60,7 +60,7 @@ export DIARY_PATH="$HOME/Documents/diary"
 
 ---
 
-## 02-24 星期二
+## 02-24 Tue
 ### 今日记录
 
 ...
