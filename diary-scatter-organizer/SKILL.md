@@ -1,17 +1,17 @@
 ---
 name: diary-scatter-organizer
-description: (Linux/WSL) Use when user wants to organize scattered diary records. Triggers on「整理日记」「整理记录」「organize diary」. Parses timestamp-based records, categorizes by time, extracts health info, and generates structured diary.
+description: (Linux/Mac/Windows) Use when user wants to organize scattered diary records. Triggers on「整理日记」「整理记录」「organize diary」. Parses timestamp-based records, categorizes by time, extracts health info, and generates structured diary.
 ---
 
 ## Prerequisites
 
 | Tool | Type | Required | Install |
 |------|------|----------|---------|
-| Linux/WSL | system | Yes | Ubuntu or other Linux distributions |
-| git | cli | Yes | `sudo apt install git` |
-| Python 3 | cli | Yes | `sudo apt install python3` |
+| Linux/Mac/Windows | system | Yes | Ubuntu, macOS, or Windows with WSL |
+| git | cli | Yes | Linux: `sudo apt install git`<br>Mac: `brew install git` or included with Xcode<br>Windows: `winget install Git.Git` or download from git-scm.com |
+| Python 3 | cli | Yes | Linux: `sudo apt install python3`<br>Mac: `brew install python3` or included with macOS<br>Windows: `winget install Python.Python.3` or download from python.org |
 | weather-cn | skill | No | Included in `npx skills add niracler/skill` |
-| curl | cli | Yes | `sudo apt install curl` |
+| curl | cli | Yes | Linux: `sudo apt install curl`<br>Mac: included with macOS<br>Windows: included with Windows 10+ or install from curl.se |
 
 > Do NOT proactively verify these tools on skill load. If a command fails due to a missing tool, directly guide the user through installation and configuration step by step.
 
@@ -25,13 +25,14 @@ description: (Linux/WSL) Use when user wants to organize scattered diary records
 | **天气获取** | 自动检测城市，获取当日天气信息（默认武汉） |
 | **模版框架** | 生成完整模版，未知部分留空 |
 | **自动润色** | 修正错别字、优化语句流畅度 |
+| **标签管理调用** | 调用 diary-tag-manager 提取标签 |
 
 ## 完整流程
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│       diary-scatter-organizer 完整流程（目标 ≤5分钟）        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│       diary-scatter-organizer 完整流程（目标 ≤5分钟）       │
+└─────────────────────────────────────────────────────┘
 
    ┌──────────────┐
    │ 用户输入：    │
@@ -82,6 +83,13 @@ description: (Linux/WSL) Use when user wants to organize scattered diary records
           │
           ▼
    ┌────────────────────────────────────┐
+   │ 7. AI标签提取（调用diary-tag-manager） (~1-2min) │
+   │    调用 diary-tag-manager skill      │
+   │    使用最新的标签提取策略            │
+   └──────┬─────────────────────────────┘
+          │
+          ▼
+   ┌────────────────────────────────────┐
    │ 7. 生成模版框架           (~1min)   │
    │    填充已知部分（含天气）           │
    │    未知部分留空                     │
@@ -95,7 +103,7 @@ description: (Linux/WSL) Use when user wants to organize scattered diary records
           │
           ▼
    ┌────────────────────────────────────┐
-   │ 9. Git 推送              (~10sec)   │
+   │ 9. Git 推送             (~10sec)   │
    │    git add → commit → push        │
    └──────┬─────────────────────────────┘
           │
@@ -108,7 +116,7 @@ description: (Linux/WSL) Use when user wants to organize scattered diary records
 ## 1. Git 拉取（获取最新）
 
 ```bash
-cd ~/Documents/diary
+cd ../diary
 git pull origin main
 ```
 
@@ -683,7 +691,40 @@ def extract_meal_content(content: str) -> str:
 【日记内容】
 ```
 
-## 7. 生成模版框架
+## 7. AI标签提取（调用diary-tag-manager）
+
+### 调用流程
+
+Claude: 「正在调用 diary-tag-manager 提取标签...」
+
+**调用方式：**
+1. 读取已生成的日记内容
+2. 调用 diary-tag-manager skill 进行标签提取
+3. 使用最新的标签提取策略（包含详细标签和紧凑格式）
+4. 将提取的标签块添加到日记文件末尾
+
+### 标签提取结果
+
+diary-tag-manager 会自动：
+- 使用最新的AI标签提取提示词
+- 提取详细标签（具体菜名、运动距离、学习内容等）
+- 生成紧凑格式的标签块（分类和标签在同一行）
+- 严格遵循"不要无中生有标签"的原则
+
+**示例输出：**
+```
+✅ 标签提取完成！
+
+📊 主要标签：#生活日常 #数字成瘾 #运动健康 #饮食健康 #学习成长
+🏷️ 子标签：#辣椒炒肉 #豆丝炒腊肠 #散步 #走楼梯-25层 #抖音 #Mac #自控管理
+😊 情绪标签：#平静 #反思 #满足
+📍 地点标签：#武汉 #家中 #公园
+
+正在添加标签块到日记文件末尾...
+✅ 标签块已添加！
+```
+
+## 8. 生成模版框架
 
 ### 完整模版
 
@@ -907,16 +948,16 @@ def generate_template(date: str, weekday: str, weather_str: str, categorized: di
     return template
 ```
 
-## 8. 保存到文件
+## 9. 保存到文件
 
 ### 文件路径
 
 ```bash
 # 格式：YYYY/MM/MM-DD.md
-file_path="~/Documents/diary/$(date +%Y)/$(date +%m)/$(date +%m-%d).md"
+file_path="../diary/$(date +%Y)/$(date +%m)/$(date +%m-%d).md"
 ```
 
-例如：`~/Documents/diary/2026/02/02-24.md`
+例如：`../diary/2026/02/02-24.md`
 
 ### 写入逻辑
 
@@ -924,7 +965,8 @@ file_path="~/Documents/diary/$(date +%Y)/$(date +%m)/$(date +%m-%d).md"
 #!/bin/bash
 # 写入日记文件
 
-diary_path="$HOME/Documents/diary"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+diary_path="$SCRIPT_DIR/../../diary"
 year=$(date +%Y)
 month=$(date +%m)
 date=$(date +%m-%d)
@@ -950,10 +992,10 @@ Claude: 「检测到文件已存在：2026/02/02-24.md
 用户: 「n」 → 退出
 ```
 
-## 9. Git 推送（保存修改）
+## 10. Git 推送（保存修改）
 
 ```bash
-cd ~/Documents/diary
+cd ../diary
 git add .
 git commit -m "update: $(date +%Y-%m-%d)"
 git push origin main
@@ -965,7 +1007,7 @@ git push origin main
 Claude: 「日记已完成。现在推送到 Git 远程仓库。」
 
 执行：
-cd ~/Documents/diary
+cd ../diary
 git add .
 git commit -m "update: $(date +%Y-%m-%d)"
 git push origin main
@@ -980,7 +1022,7 @@ Claude: 「推送完成！」
 Claude: 「⚠️ 检测到 Git 冲突，需要先拉取。
 
 请先执行：
-cd ~/Documents/diary
+cd ../diary
 git pull origin main
 解决冲突后，再推送。」
 ```

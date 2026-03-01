@@ -1,12 +1,13 @@
 #!/bin/bash
 # Git 推送脚本
 
-cd ~/Documents/diary
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/../../diary"
 
 # 检查是否是 Git 仓库
 if [ ! -d ".git" ]; then
   echo "⚠️  不是一个 Git 仓库，请先初始化："
-  echo "cd ~/Documents/diary"
+  echo "cd $SCRIPT_DIR/../../diary"
   echo "git init"
   echo "git add ."
   echo "git commit -m 'init: 初始化日记仓库'"

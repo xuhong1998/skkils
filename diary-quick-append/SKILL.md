@@ -1,18 +1,14 @@
 ---
 name: diary-quick-append
-description: (Linux/WSL) Use when user wants to quickly append diary content. Trigger pattern: "写日记：[content]" or "写日记 [date]: [content]". Automatically polishes and appends to the diary file. No questions asked.
+description: (Linux/Mac/Windows) Use when user wants to quickly append diary content. Trigger pattern: "写日记：[content]" or "写日记 [date]: [content]". Automatically polishes and appends to the diary file. No questions asked.
 ---
-
-# Diary Quick Append
-
-快速追加日记，自动润色并保存到月度日记文件，无需交互。
 
 ## Prerequisites
 
 | Tool | Type | Required | Install |
 |------|------|----------|---------|
-| Linux/WSL | system | Yes | Ubuntu or other Linux distributions |
-| git | cli | Yes | `sudo apt install git` |
+| Linux/Mac/Windows | system | Yes | Ubuntu, macOS, or Windows with WSL |
+| git | cli | Yes | Linux: `sudo apt install git`<br>Mac: `brew install git` or included with Xcode<br>Windows: `winget install Git.Git` or download from git-scm.com |
 
 > Do NOT proactively verify these tools on skill load. If a command fails due to a missing tool, directly guide the user through installation and configuration step by step.
 
@@ -22,6 +18,7 @@ description: (Linux/WSL) Use when user wants to quickly append diary content. Tr
 |------|------|
 | **零交互** | 自动完成所有操作，不询问用户 |
 | **自动润色** | 修正错别字、优化语句流畅度 |
+| **自动标签提取** | 后台自动提取标签用于知识图谱 |
 | **自动追加** | 自动识别日期并追加到文件 |
 | **自动同步** | 自动提交并推送到 Git |
 
@@ -45,7 +42,7 @@ description: (Linux/WSL) Use when user wants to quickly append diary content. Tr
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│     diary-quick-append 完整流程（目标 ≤30秒）            │
+│     diary-quick-append 完整流程（目标 ≤45秒）            │
 └─────────────────────────────────────────────────────────────┘
 
   ┌──────────────┐
@@ -81,7 +78,14 @@ description: (Linux/WSL) Use when user wants to quickly append diary content. Tr
          │
          ▼
   ┌────────────────────────────────────┐
-  │ 5. Git 推送              (~3sec)   │
+  │ 5. 后台AI标签提取       (~10-15sec) │
+  │    使用提示词提取标签             │
+  │    在文件末尾添加标签块           │
+  └──────┬─────────────────────────────┘
+         │
+         ▼
+  ┌────────────────────────────────────┐
+  │ 6. Git 推送              (~3sec)   │
   │    git add                     │
   │    git commit                  │
   │    git push                    │
@@ -136,7 +140,7 @@ def get_weekday(year, month, day):
 ## 2. Git 拉取
 
 ```bash
-cd ~/Documents/diary
+cd ../diary
 git pull origin main
 ```
 
@@ -192,7 +196,7 @@ git pull origin main
 
 ```bash
 # 格式：YYYY/YYYY-MM.md
-file_path="~/Documents/diary/$(date +%Y)/$(date +%Y-%m).md"
+file_path="../diary/$(date +%Y)/$(date +%Y-%m).md"
 ```
 
 ### 追加格式
@@ -234,10 +238,56 @@ def append_content(file_path, date, weekday, content):
         f.write(footer)
 ```
 
-## 5. Git 推送
+## 5. 后台AI标签提取
+
+在日记内容追加到文件后，后台静默执行标签提取，不干扰用户体验。
+
+### 提取过程
+
+Claude: 「（后台）正在分析内容，提取标签...」
+
+**静默提取：**
+1. 使用标签提取提示词分析日记内容
+2. 提取主要标签、子标签、情感标签、地点标签、人物标签
+3. 按照标准格式生成标签块
+4. 在日记文件末尾追加标签块
+
+**输出：**
+```
+✅ 标签已自动提取并保存（5-8个标签）
+```
+
+### 标签块格式
+
+```markdown
+---
+## 🏷️ AI提取标签
+
+主要标签: #生活日常 #数字成瘾
+子标签: #抖音使用 #辣椒炒肉 #散步
+情绪标签: #平静 #反思
+地点标签: #武汉 #家中
+
+---
+```
+
+### Obsidian集成
+
+添加的标签块会被Obsidian自动识别并显示在关系图谱中：
+- 标签节点自动创建
+- 日记节点与标签节点自动连接
+- 相同标签的日记自动关联
+
+### 后台处理特点
+
+- **零交互**：不显示给用户，保持快速体验
+- **自动保存**：直接更新文件，无需确认
+- **静默错误处理**：如果提取失败，不影响日记保存，仅记录日志
+
+## 6. Git 推送
 
 ```bash
-cd ~/Documents/diary
+cd ../diary
 git add .
 git commit -m "update: $(date +%Y-%m-%d)"
 git push origin main
@@ -251,8 +301,9 @@ git push origin main
 | Git 拉取 | ~2 秒 |
 | 润色内容 | ~5 秒 |
 | 追加文件 | ~2 秒 |
+| 后台AI标签提取 | ~10-15 秒 |
 | Git 推送 | ~3 秒 |
-| **总计** | **~13 秒** |
+| **总计** | **~23-28 秒** |
 
 ## 错误处理
 

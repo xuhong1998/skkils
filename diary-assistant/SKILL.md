@@ -1,14 +1,14 @@
 ---
-name: diary-assistant-linux
-description: (Linux/WSL) Use when user wants to write diary entries or daily logs. Triggers include「帮我写日记」「记录今天」「写日记」「今天的日记」. Provides complete diary workflow with guided reflection questions. Generates monthly diary files organized by date.
+name: diary-assistant
+description: (Linux/Mac/Windows) Use when user wants to write diary entries or daily logs. Triggers include「帮我写日记」「记录今天」「写日记」「今天的日记」. Provides complete diary workflow with guided reflection questions. Generates monthly diary files organized by date.
 ---
 
 ## Prerequisites
 
 | Tool | Type | Required | Install |
 |------|------|----------|---------|
-| Linux/WSL | system | Yes | Ubuntu or other Linux distributions |
-| git | cli | Yes | `sudo apt install git` |
+| Linux/Mac/Windows | system | Yes | Ubuntu, macOS, or Windows with WSL |
+| git | cli | Yes | Linux: `sudo apt install git`<br>Mac: `brew install git` or included with Xcode<br>Windows: `winget install Git.Git` or download from git-scm.com |
 | anki-card-generator | skill | No | Included in `npx skills add niracler/skill` |
 
 > Do NOT proactively verify these tools on skill load. If a command fails due to a missing tool, directly guide the user through installation and configuration step by step.
@@ -19,12 +19,13 @@ description: (Linux/WSL) Use when user wants to write diary entries or daily log
 |------|------|
 | **30 分钟约束** | 完整流程控制在 30 分钟内完成 |
 | **启发而非代写** | 用提问引导思考，不替用户决定内容 |
+| **自动标签提取** | 使用AI自动提取标签用于知识图谱 |
 
 ## 完整流程
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
-│          diary-assistant-linux 完整流程（目标 ≤30min）                │
+│          diary-assistant 完整流程（目标 ≤32min）                  │
 │          按月生成日记文件，每日记录追加到当月文件                     │
 └─────────────────────────────────────────────────────────────────────┘
 
@@ -49,35 +50,42 @@ description: (Linux/WSL) Use when user wants to write diary entries or daily log
   └──────┬─────────────────────────────┘
           │
           ▼
-    ┌────────────────────────────────────┐
-    │ 3. 整理成文              (~5min)    │
-    │    按日期分节（二级标题）            │
-    └──────┬─────────────────────────────┘
+     ┌────────────────────────────────────┐
+     │ 3. 整理成文              (~5min)    │
+     │    按日期分节（二级标题）            │
+     └──────┬─────────────────────────────┘
+            │
+            ▼
+     ┌────────────────────────────────────┐
+     │ 4. AI标签提取          (~2min)    │
+     │    调用diary-tag-manager提取标签   │
+     │    在日记末尾添加标签块            │
+     └──────┬─────────────────────────────┘
+            │
+            ▼
+     ┌────────────────────────────────────┐
+     │ 5. 错别字修正（可选）    (~1-2min) │
+     │    仅修正错别字、标点、语法        │
+     │    绝不改变用户内容                │
+     └──────┬─────────────────────────────┘
+            │
+            ▼
+     ┌────────────────────────────────────┐
+     │ 6. 智能收尾              (~0-5min)  │
+     │    检测到 TIL → 「要生成 Anki 吗？」│
+     └──────┬─────────────────────────────┘
            │
            ▼
     ┌────────────────────────────────────┐
-    │ 4. 错别字修正（可选）    (~1-2min) │
-    │    仅修正错别字、标点、语法        │
-    │    绝不改变用户内容                │
+    │ 7. Git 推送（保存修改）    (~1min)  │
+    │    git add → git commit          │
+    │    git push origin main          │
     └──────┬─────────────────────────────┘
            │
            ▼
-    ┌────────────────────────────────────┐
-    │ 5. 智能收尾              (~0-5min)  │
-    │    检测到 TIL → 「要生成 Anki 吗？」│
-    └──────┬─────────────────────────────┘
-          │
-          ▼
-   ┌────────────────────────────────────┐
-   │ 6. Git 推送（保存修改）    (~1min)  │
-   │    git add → git commit          │
-   │    git push origin main          │
-   └──────┬─────────────────────────────┘
-          │
-          ▼
-       ┌──────┐
-       │ 完成  │  总计 ~28-30min
-       └──────┘
+        ┌──────┐
+        │ 完成  │  总计 ~30-32min
+        └──────┘
 ```
 
 ## 1. Git 拉取（获取最新）
@@ -87,7 +95,7 @@ description: (Linux/WSL) Use when user wants to write diary entries or daily log
 ### 拉取命令
 
 ```bash
-cd ~/Documents/diary
+cd ../diary
 git pull origin main
 ```
 
@@ -122,7 +130,7 @@ Working Copy → Pull
 
 **Android：**
 ```bash
-cd ~/Documents/diary
+cd ../diary
 git pull origin main
 ```
 
@@ -185,48 +193,87 @@ Claude: 「好的，开始整理日记。」
 没有收获。
 ```
 
-## 5. 整理成文
+## 4. AI标签提取
 
-将记录整理成完整日记，按日期分节追加到月度文件。
+在日记整理成文后，自动使用AI提取标签，用于构建知识图谱。
 
-### 新月度文件（首次）
+### 提取流程
 
-```markdown
-# 2026-02
+Claude: 「正在分析今日内容，提取知识图谱标签...」
 
-## 02-24 星期二
-### 今日记录
+**提取过程：**
+1. 调用标签提取提示词分析日记内容
+2. 提取主要标签、子标签、情感标签、地点标签、人物标签
+3. 按照标准格式整理标签
+4. 在日记文件末尾添加标签区块
 
-[Work Log 部分，如果可用]
+**输出示例：**
+```
+✅ 标签提取完成！
 
-新年第一天上班。
+📊 主要标签：#生活日常 #投资理财 #数字成瘾
+🏷️ 子标签：#基金交易 #抖音使用 #饮食健康
+😊 情绪标签：#平静 #反思 #焦虑
+📍 地点标签：#武汉 #家中
 
-### 收获与感受
-
-没有收获。
+正在添加标签块到日记文件末尾...
+✅ 标签块已添加！
 ```
 
-### 已有月度文件（追加）
+### 标签块格式
 
-在文件末尾添加今天的记录：
+在日记文件末尾添加以下格式的标签块：
 
 ```markdown
+---
+## 🏷️ AI提取标签
+
+主要标签: #生活日常 #数字成瘾 #运动健康 #学习成长 #饮食健康
+子标签: #辣椒炒肉 #豆丝炒腊肠 #散步 #走楼梯 #抖音 #Mac #自控管理
+情绪标签: #平静 #反思
+地点标签: #武汉 #家中 #公园
 
 ---
-
-## 02-24 星期二
-### 今日记录
-
-[Work Log 部分，如果可用]
-
-新年第一天上班。
-
-### 收获与感受
-
-没有收获。
 ```
 
-## 4. 错别字修正和语句通顺（可选）
+### Obsidian集成
+
+添加的标签块会被Obsidian完整识别并显示在关系图谱中：
+
+- **标签节点**：`#生活日常`、`#投资理财`等
+- **连线关系**：日记节点与标签节点的双向连接
+- **聚合效果**：相同标签的所有日记自动关联
+
+### 标签提取原则
+
+**必须提取：**
+- 明确提到的投资活动（交易、亏损、学习）
+- 明确的数字成瘾行为（刷抖音、看短视频）
+- 重要的人际关系事件（家庭冲突、相亲）
+- 重要的学习活动（阅读书籍、学习技能）
+- 重要的生活事件（特殊聚餐、旅行、运动）
+
+**选择性提取：**
+- 一般性描述（根据重要性和频次决定）
+- 重复性行为（评估是否值得追踪）
+- 具体细节（除非有特殊意义）
+
+**不提取：**
+- 过于具体的描述（如具体食物名称）
+- 日常琐碎（如"洗脸"、"刷牙"）
+- 一时的情绪发泄（除非有重要意义）
+- 临时性的小事（如临时决定的小事）
+
+### 用户确认（可选）
+
+Claude: 「标签已自动提取并保存。是否需要查看标签统计或调整标签？」
+
+用户选项：
+1. 查看标签统计
+2. 调整标签（添加/删除/修改）
+3. 继续下一步
+
+## 6. 错别字修正和语句通顺（可选）
 
 在日记整理完成后，询问是否需要修正错别字和优化语句流畅度。
 
@@ -290,7 +337,7 @@ Claude: 「修正完成。以下是修改内容：
 用户: 「是」/ 「撤销」/ 「只保留部分」
 ```
 
-## 5. 智能收尾
+## 7. 智能收尾
 
 根据日记内容推荐后续操作：
 
@@ -298,7 +345,7 @@ Claude: 「修正完成。以下是修改内容：
 |----------|----------|
 | TIL（今天学到的东西） | 「检测到你今天学了新东西，要生成 Anki 卡片吗？」→ 调用 `anki-card-generator` |
 
-## 6. Git 推送（保存修改）
+## 8. Git 推送（保存修改）
 
 在日记完成后，将修改推送到 Git 远程仓库。
 
@@ -310,7 +357,7 @@ Claude: 「修正完成。以下是修改内容：
 #!/bin/bash
 # Git 推送脚本
 
-cd ~/Documents/diary
+cd ../diary
 
 # 添加修改
 git add .
@@ -334,7 +381,7 @@ git push origin main
 Claude: 「日记已完成。现在推送到 Git 远程仓库。」
 
 执行：
-cd ~/Documents/diary
+cd ../diary
 git add .
 git commit -m "update: $(date +%Y-%m-%d)"
 git push origin main
@@ -349,7 +396,7 @@ Claude: 「推送完成！」
 Claude: 「⚠️ 检测到 Git 冲突，需要先拉取。
 
 请先执行：
-cd ~/Documents/diary
+cd ../diary
 git pull origin main
 解决冲突后，再推送。」
 ```
