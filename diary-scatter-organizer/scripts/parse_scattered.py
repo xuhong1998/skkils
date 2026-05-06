@@ -9,8 +9,14 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import json
+import os
 from datetime import datetime
 from typing import List, Tuple, Dict, Optional, Any
+try:
+    import openai
+    HAS_OPENAI = True
+except ImportError:
+    HAS_OPENAI = False
 
 # 默认城市
 DEFAULT_CITY = "武汉"
@@ -98,13 +104,18 @@ def detect_city(text: str, default_city: str = DEFAULT_CITY) -> str:
     ]
 
     for pattern in city_patterns:
-        matches = re.findall(pattern, text)
+        matches = re.finditer(pattern, text)
         if matches:
             # 过滤掉明显不是城市的词
-            excluded_words = ["没有", "这个", "那个", "哪里", "所有", "其他", "没有城"]
+            excluded_words = ["没有", "这个", "那个", "哪里", "所有", "其他", "没有城", "菜市", "夜市", "顺路去菜", "早市", "晚市", "顺路去菜市"]
             for match in matches:
-                if len(match) >= 2 and match not in excluded_words:
-                    return match + "市"  # 返回完整城市名
+                city_candidate = match.group(0)  # 完整匹配的字符串
+                # 过滤掉包含常见动词、介词的城市名
+                invalid_prefixes = ["顺路", "去", "去菜", "去夜", "去早", "去了", "回"]
+                if (len(city_candidate) >= 2 and 
+                    city_candidate not in excluded_words and 
+                    not any(city_candidate.startswith(prefix) for prefix in invalid_prefixes)):
+                    return city_candidate  # 返回完整城市名
 
     # 使用默认城市
     return default_city
@@ -206,7 +217,7 @@ def parse_input(input_text: str) -> Dict[str, Any]:
     lines = input_text.strip().split("\n")
 
     # 想法关键词（支持多种格式）
-    idea_keywords = ["想法", "感悟", "思考", "感想"]
+    idea_keywords = ["想法", "感悟", "思考", "感想", "感觉", "感受"]
 
     records = []
     ideas = []
@@ -224,6 +235,15 @@ def parse_input(input_text: str) -> Dict[str, Any]:
             if line_stripped == keyword or line_stripped.startswith(keyword + "：") or line_stripped.startswith(keyword + ":"):
                 is_idea_keyword = True
                 current_section = "ideas"
+                # 提取关键词后的内容
+                if "：" in line_stripped:
+                    idea_content = line_stripped.split("：", 1)[1]
+                    if idea_content:
+                        ideas.append(idea_content)
+                elif ":" in line_stripped:
+                    idea_content = line_stripped.split(":", 1)[1]
+                    if idea_content:
+                        ideas.append(idea_content)
                 break
 
         if is_idea_keyword:
@@ -310,14 +330,31 @@ def extract_meal_content(content: str) -> str:
         r"晚上吃了",
         r"晚上吃",
         r"弄了两块",
-        r"吃",
-        r"的",  # 删除"的"字
+        r"弄了几块",
+        r"学完自由泳回家",
+        r"回家",
     ]
 
     result = content
     for pattern in patterns:
         result = re.sub(pattern, "", result)
 
+    # 找到烹饪动词后面的内容
+    cooking_keywords = ["煮", "蒸", "炒", "煎", "烤", "炸", "剪"]  # 添加"剪"（用户可能的误写）
+    for keyword in cooking_keywords:
+        # 查找"煮/蒸/etc xxx"的模式
+        match = re.search(rf"{keyword}([^，。、；：,.;:]+)", result)
+        if match:
+            # 只保留第一个匹配的餐食内容
+            meal_part = match.group(1).strip()
+            # 删除动词"吃"
+            meal_part = re.sub(r"吃", "", meal_part)
+            return meal_part
+
+    # 如果没有找到烹饪动词，尝试直接提取（去掉"吃"和"的"）
+    result = re.sub(r"吃", "", result)
+    result = re.sub(r"的", "", result)
+    
     # 删除逗号和标点以及后面的描述（从第一个逗号开始截断）
     result = re.sub(r"[，。、；：,.;:].*$", "", result)
 
@@ -342,21 +379,32 @@ def extract_health_info(records: List[Tuple[str, str]]) -> Dict[str, str]:
     health_info = {"午餐": "", "晚餐": "", "运动": "", "喝水": ""}
 
     lunch_keywords = ["午餐", "午饭", "中午吃", "中午饭", "吃的一碗"]
-    dinner_keywords = ["晚餐", "晚饭", "晚上吃", "弄了几块", "弄了两块", "做了", "吃了"]
-    exercise_keywords = ["跑步", "走了", "健身", "锻炼", "运动", "打球", "跑了", "走了"]
+    dinner_keywords = ["晚餐", "晚饭", "晚上吃", "弄了几块", "弄了两块", "做了"]
+    cooking_keywords = ["煮", "蒸"]  # 烹饪关键词，需要结合时间判断
+    exercise_keywords = ["跑步", "走了", "健身", "锻炼", "运动", "打球", "跑了", "走了", "游泳"]
     water_keywords = ["喝水", "喝了", "喝水", "水"]
 
     for time_str, content in records:
+        hour, minute = map(int, time_str.split(":"))
+        time_minutes = hour * 60 + minute
+
         # 提取午餐
-        if any(kw in content for kw in lunch_keywords) and not health_info["午餐"]:
-            health_info["午餐"] = extract_meal_content(content)
+        is_lunch = any(kw in content for kw in lunch_keywords)
+        is_cooking = any(kw in content for kw in cooking_keywords)
+        is_eating = "吃" in content
+        if (is_lunch or is_eating) and not health_info["午餐"]:
+            # 如果是早晨到中午时间段（9:00-15:00），且包含"吃"字，认为是午餐
+            if 9 * 60 <= time_minutes < 15 * 60:
+                # 如果是早餐时间（7:00-9:00）且没有其他午餐标记，跳过
+                if 7 * 60 <= time_minutes < 9 * 60 and not is_lunch:
+                    continue
+                health_info["午餐"] = extract_meal_content(content)
 
         # 提取晚餐
-        if any(kw in content for kw in dinner_keywords) and not health_info["晚餐"]:
-            # 如果是晚上时间段的记录，优先认为是晚餐
-            hour, minute = map(int, time_str.split(":"))
-            time_minutes = hour * 60 + minute
-            if 18 * 60 <= time_minutes < 24 * 60:
+        is_dinner = any(kw in content for kw in dinner_keywords)
+        if (is_dinner or is_eating) and not health_info["晚餐"]:
+            # 如果是晚上时间段（18:00-22:00），且包含"吃"字，认为是晚餐
+            if 18 * 60 <= time_minutes < 22 * 60:
                 health_info["晚餐"] = extract_meal_content(content)
 
         # 提取运动
